@@ -11,7 +11,7 @@ An extension for **Microsoft Edge** that copies pull request and Jira issue titl
 | GitHub · PR header | **Copy PR title as a link** | Copies the title as a link to the main PR page. The title omits the PR number, and the URL omits tab paths, query parameters, and fragments. |
 | GitHub · PR header | **Trunk** | Adds the PR to the merge queue or cancels the request from **Conversation** when the PR has a Trunk comment. |
 | GitHub · PR header | **Devin** | Toggles PR automation when the corresponding control is available in Devin's comment. |
-| GitHub · **Conversation** | **Copy password and open Firm URL** | Copies a test-environment password from a supported GitHub Actions comment, then opens the environment URL in the same tab. If copying fails, the tab stays on the PR. Off by default. |
+| GitHub · PR header (all tabs) | **Copy password and open Firm URL** | Appears on PRs in the configured repository. On click, reads the GitHub Actions comment from **Conversation**, copies the test-environment password, and opens the environment URL in the same tab. If no matching comment is found or copying fails, the tab stays on the PR. Off by default. |
 | Jira · issue breadcrumb | **Format Link** | Copies `DEMO-101: Issue title` as a direct link to the issue. Works on the issue page and in the board's issue view. The button appears when you hover over the issue key or navigate to it with the keyboard. |
 
 **Pasting links:** rich-text editors receive a clickable link. Plain-text fields receive only the title (plus the issue key for Jira). The buttons indicate whether copying succeeded.

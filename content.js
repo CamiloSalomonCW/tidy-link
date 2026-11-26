@@ -284,14 +284,11 @@
 
   const firmMarker = "[data-cw-firm-login]";
 
-  function conversationRepo() {
-    if (location.hostname === "github.com") {
-      return location.pathname.match(/^\/([^/]+\/[^/]+)\/pull\/\d+\/?$/)?.[1].toLowerCase();
-    }
-  }
+  const isConversation = pathname => location.pathname.replace(/\/$/, "") === pathname;
+  const githubRepo = pathname => pathname?.split("/").slice(1, 3).join("/").toLowerCase();
 
-  function findFirmLogin(domain) {
-    const comments = [...document.querySelectorAll('[id^="issuecomment-"]')].reverse();
+  function findFirmLogin(domain, page = document) {
+    const comments = [...page.querySelectorAll('[id^="issuecomment-"]')].reverse();
     for (const comment of comments) {
       if (!/^issuecomment-\d+$/.test(comment.id)) continue;
       const body = comment.querySelector(".comment-body, .markdown-body");
@@ -312,15 +309,16 @@
     }
   }
 
-  function readFirmLogin() {
+  function configuredFirmSite(pathname) {
     const site = settings.firmSite;
-    if (settings.firm && site?.domain && conversationRepo() === site.repo) return findFirmLogin(site.domain);
+    if (settings.firm && site?.domain && githubRepo(pathname) === site.repo) return site;
   }
 
   if (location.hostname === "github.com") {
     globalThis.chrome?.runtime?.onMessage.addListener((message, _sender, sendResponse) => {
       if (message !== "detect-firm-site") return;
-      const repo = conversationRepo();
+      const pathname = prPath();
+      const repo = isConversation(pathname) && githubRepo(pathname);
       const login = repo && findFirmLogin();
       sendResponse(login ? { repo, domain: login.domain } : null);
     });
@@ -328,7 +326,27 @@
 
   function createFirmButton(nativeButton) {
     const button = createButton(nativeButton, "Copy password and open Firm URL", async () => {
-      const login = readFirmLogin();
+      const pathname = prPath();
+      const site = configuredFirmSite(pathname);
+      if (!site) throw new Error("Firm URL is not configured for this PR");
+      let login = isConversation(pathname) && findFirmLogin(site.domain);
+      if (!login) {
+        // Other PR tabs do not contain the comment. Read the same PR on click only.
+        let page;
+        try {
+          const response = await fetch(`${location.origin}${pathname}`, { mode: "same-origin", cache: "no-store" });
+          if (!response.ok) throw new Error();
+          const template = document.createElement("template");
+          template.innerHTML = await response.text();
+          page = template.content;
+        } catch {
+          throw new Error("Could not load the PR conversation");
+        }
+        if (prPath() !== pathname || configuredFirmSite(pathname)?.domain !== site.domain) {
+          throw new Error("The PR or Firm URL settings changed. Try again.");
+        }
+        login = findFirmLogin(site.domain, page);
+      }
       if (!login) throw new Error("Firm login comment is unavailable");
       // Do not surface browser errors that might include clipboard content or the destination.
       try {
@@ -355,7 +373,7 @@
       [settings.prTitle, marker, createButton],
       [settings.trunk, mergeMarker, createMergeButton],
       [settings.devin, devinMarker, createDevinButton],
-      [nativeButtons.length > 0 && readFirmLogin(), firmMarker, createFirmButton],
+      [configuredFirmSite(prPath()), firmMarker, createFirmButton],
     ];
     const keep = new Set();
     for (const nativeButton of nativeButtons) {
