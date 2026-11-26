@@ -9,6 +9,64 @@
   const jiraSources = new WeakMap();
   const linkPath = "M9 3h4v4M13 3l-7 7M6 3H3v10h10v-3";
   const prPath = () => location.pathname.match(/^(\/[^/]+\/[^/]+\/pull\/[1-9]\d*)(?:\/|$)/)?.[1];
+  const onGitHub = location.hostname === "github.com";
+
+  function setTooltip(button, text) {
+    if (button.dataset.cwTooltip === text) return;
+    button.dataset.cwTooltip = text;
+    button.setAttribute("aria-label", text);
+    if (!HTMLElement.prototype.showPopover) button.title = text;
+    else if (activeTooltipButton === button) showTooltip(button);
+  }
+
+  let tooltip;
+  let activeTooltipButton;
+  function showTooltip(button) {
+    if (!tooltip) {
+      tooltip = document.createElement("div");
+      tooltip.setAttribute("popover", "manual");
+      tooltip.setAttribute("aria-hidden", "true");
+      tooltip.style.cssText = `position:fixed;inset:auto;margin:0;box-sizing:border-box;max-width:min(280px,calc(100vw - 16px));pointer-events:none;border:0;text-align:center;overflow-wrap:anywhere;${onGitHub
+        ? "background:var(--tooltip-bgColor,var(--fgColor-default,#1f2328));color:var(--tooltip-fgColor,var(--bgColor-default,#fff));font:12px/1.5 -apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;padding:4px 8px;border-radius:6px"
+        : "background:var(--ds-background-neutral-bold,#292a2e);color:var(--ds-text-inverse,#fff);font:var(--ds-font-body-small,12px/16px system-ui,sans-serif);padding:2px 6px;border-radius:3px"}`;
+      document.body.append(tooltip);
+    }
+    const text = button.dataset.cwTooltip;
+    if (tooltip.textContent !== text) tooltip.textContent = text;
+    if (!tooltip.matches(":popover-open")) tooltip.showPopover();
+    activeTooltipButton = button;
+    const { left, top, bottom, width } = button.getBoundingClientRect();
+    const { width: tipWidth, height: tipHeight } = tooltip.getBoundingClientRect();
+    tooltip.style.left = `${Math.max(8, Math.min(innerWidth - tipWidth - 8, left + (width - tipWidth) / 2))}px`;
+    const above = top - tipHeight - 6;
+    const below = bottom + 6;
+    tooltip.style.top = `${(!onGitHub && above >= 0) || below + tipHeight > innerHeight ? Math.max(0, above) : below}px`;
+  }
+
+  function hideTooltip() {
+    if (activeTooltipButton) tooltip.hidePopover();
+    activeTooltipButton = undefined;
+  }
+
+  function bindTooltip(button) {
+    if (!HTMLElement.prototype.showPopover) return;
+    let timer;
+    const open = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => { if (button.isConnected) showTooltip(button); }, 250);
+    };
+    const close = () => {
+      clearTimeout(timer);
+      if (activeTooltipButton === button) hideTooltip();
+    };
+    button.addEventListener("pointerenter", open);
+    button.addEventListener("pointerleave", close);
+    button.addEventListener("focus", open);
+    button.addEventListener("blur", close);
+    button.addEventListener("keydown", event => { if (event.key === "Escape") close(); });
+  }
+  document.addEventListener("scroll", hideTooltip, true);
+  window.addEventListener("resize", hideTooltip);
 
   // GitHub's PR header toolbar: the native "Copy link" icon button next to the title.
   function isBranchButton(element) {
@@ -87,8 +145,7 @@
     button.append(svg, status);
 
     function feedback(message, shape = icon, color = "") {
-      button.title = message;
-      button.setAttribute("aria-label", message);
+      setTooltip(button, message);
       button.dataset.cwCopyState = message === label ? "idle" : message === "Copied!" ? "success" : "error";
       path.setAttribute("d", shape);
       path.setAttribute("transform", shape === linkPath ? "rotate(180 8 8)" : "");
@@ -96,6 +153,7 @@
       status.textContent = message === label ? "" : message;
     }
     feedback(label);
+    bindTooltip(button);
 
     let reset;
     button.addEventListener("click", async (event) => {
@@ -111,7 +169,7 @@
         console.warn("TidyLink:", error);
       } finally {
         button.disabled = false;
-        if (button.title === "Copied!") reset = setTimeout(() => feedback(label), 2000);
+        if (button.dataset.cwCopyState === "success") reset = setTimeout(() => feedback(label), 2000);
       }
     });
     return button;
@@ -163,10 +221,10 @@
     button.style.color = !checked ? (ready ? "var(--fgColor-success, #1a7f37)" : "var(--fgColor-muted, #59636e)")
       : failed ? "var(--fgColor-danger, #d1242f)" : blocked ? "var(--fgColor-attention, #9a6700)" : "var(--fgColor-success, #1a7f37)";
     button.querySelector("[data-cw-tick]").style.display = checked ? "" : "none";
-    button.title = button.ariaLabel = !found ? "Trunk comment not found"
+    setTooltip(button, !found ? "Trunk comment not found"
       : !checked ? `${ready ? "Approved (2+)" : "Not queued"} — click to merge (/trunk merge)`
       : blocked ? "Queued, merge criteria not met yet — click to cancel (/trunk cancel)"
-      : "In merge queue — click to cancel (/trunk cancel)";
+      : "In merge queue — click to cancel (/trunk cancel)");
   }
 
   function createMergeButton(nativeButton) {
@@ -210,7 +268,7 @@
         }
       } catch (error) {
         console.warn("TidyLink:", error);
-        button.title = button.ariaLabel = `Could not update: ${error.message}`;
+        setTooltip(button, `Could not update: ${error.message}`);
         return;
       } finally {
         button.disabled = false;
@@ -218,6 +276,7 @@
       setTimeout(() => updateMergeButton(button), 300);
     });
     updateMergeButton(button);
+    bindTooltip(button);
     return button;
   }
 
@@ -238,8 +297,8 @@
     button.setAttribute("aria-checked", String(locked));
     button.style.color = locked ? "var(--fgColor-attention, #9a6700)" : "var(--fgColor-muted, #59636e)";
     button.querySelector("[data-cw-shackle]").setAttribute("d", locked ? "M5.5 6.5V4a2.5 2.5 0 0 1 5 0v2.5" : "M5.5 6.5V4a2.5 2.5 0 0 1 4.9-.7");
-    button.title = button.ariaLabel = !box ? "Devin comment not found"
-      : locked ? "Devin automation disabled — click to re-enable" : "Devin automation active — click to disable";
+    setTooltip(button, !box ? "Devin comment not found"
+      : locked ? "Devin automation disabled — click to re-enable" : "Devin automation active — click to disable");
   }
 
   function createDevinButton(nativeButton) {
@@ -273,6 +332,7 @@
       setTimeout(() => updateDevinButton(button), 300);
     });
     updateDevinButton(button);
+    bindTooltip(button);
     return button;
   }
 
@@ -363,10 +423,11 @@
 
   function insertButtons() {
     if (!settings) return;
+    if (activeTooltipButton && !activeTooltipButton.isConnected) hideTooltip();
     if (location.hostname !== "github.com") return insertJiraButtons();
     const nativeButtons = prPath() ? [...document.querySelectorAll(
       "button[aria-label], button[title], button[aria-labelledby], button[aria-describedby], clipboard-copy",
-    )].filter(isBranchButton) : [];
+    )].filter(button => !button.hasAttribute("data-cw-tooltip") && isBranchButton(button)) : [];
 
     // A page can have both a regular header and a sticky header. Keep one per native button.
     const actions = [
@@ -523,7 +584,9 @@
         schedule();
       });
       insertButtons();
-    }).catch(() => {});
+    }).catch(error => {
+      console.warn("TidyLink: Could not read settings", error);
+    });
   } else {
     settings = defaults;
     insertButtons();

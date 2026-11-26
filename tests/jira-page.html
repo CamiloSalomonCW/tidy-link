@@ -37,7 +37,7 @@
     }
     try {
       let button = document.querySelector('#ticket > ' + marker);
-      check(button?.title === 'Format Link', 'Full-page current ticket gets Format Link even without an anchor');
+      check(button?.dataset.cwTooltip === 'Format Link', 'Full-page current ticket gets Format Link even without an anchor');
       check(document.querySelectorAll(marker).length === 1, 'No action on epic, comments or navigation');
       let copied = await copy(button);
       check(copied.text === 'DEMO-201: Full-page title & Unicode 🚀', 'Uses issue heading in main, not the workspace heading');
@@ -45,7 +45,7 @@
       check(button.dataset.cwCopyState === 'success' && button.querySelector('path').getAttribute('d') === 'M3 8l3 3 7-7', 'Same success check and visible feedback as popup');
       check(button.parentElement.hasAttribute('data-cw-jira-copy-group') && document.querySelector('#cw-jira-format-link-style').textContent.includes('translateX(-6px)'), 'Same ticket-text hover and left-to-right animation');
       await pause(2100);
-      check(button.title === 'Format Link' && button.dataset.cwCopyState === 'idle', 'Feedback resets after two seconds');
+      check(button.dataset.cwTooltip === 'Format Link' && button.dataset.cwCopyState === 'idle', 'Feedback resets after two seconds');
 
       const current = document.querySelector('[aria-current="page"]');
       current.outerHTML = '<a href="/browse/DEMO-201?source=breadcrumb">DEMO-201</a>';

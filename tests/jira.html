@@ -40,7 +40,7 @@
     }
     try {
       const button = document.querySelector('#ticket > ' + marker);
-      check(button?.matches(marker) && button.title === 'Format Link', 'Format Link is a direct child of the ticket text hover group');
+      check(button?.matches(marker) && button.dataset.cwTooltip === 'Format Link', 'Format Link is a direct child of the ticket text hover group');
       check(button.previousElementSibling.id === 'native-action-wrapper', 'Action is beside the native wrapper, not inside its hidden container');
       check(button.className === '' && !document.querySelector('#native-action-wrapper').contains(button), 'Does not inherit native hover-only classes or clipped wrapper');
       check(document.querySelectorAll(marker).length === 1, 'No button on ancestor epic or comment copy link');
@@ -55,7 +55,7 @@
       check(css.includes('prefers-reduced-motion: reduce') && css.includes('pointer-events: none'), 'Respects reduced motion and prevents invisible mouse targets');
       check(button.dataset.cwCopyState === 'idle', 'Starts without feedback visibility override');
       const copied = await copy(button);
-      check(button.dataset.cwCopyState === 'success' && button.title === 'Copied!', 'Successful copy sets persistent visible feedback state');
+      check(button.dataset.cwCopyState === 'success' && button.dataset.cwTooltip === 'Copied!', 'Successful copy sets persistent visible feedback state');
       check(button.querySelector('path').getAttribute('d') === 'M3 8l3 3 7-7' && button.querySelector('path').getAttribute('transform') === '', 'Link icon becomes the same upright success check as GitHub');
       check(css.includes('[data-cw-copy-state="success"]'), 'Success check stays visible even when pointer leaves ticket text');
       check(copied.text === 'DEMO-101: Fix <unsafe> & Unicode 🚀', 'Plain text compatibility contains ticket key and full title, no Markdown');
@@ -63,7 +63,7 @@
       check(copied.link.href === `${location.origin}/browse/DEMO-101?source=breadcrumb`, 'Uses exact breadcrumb destination, preserving its query, not board URL');
       check(nativeClicks === 0, 'Does not trigger native copy or navigate to the ticket');
       await pause(2100);
-      check(button.title === 'Format Link' && button.dataset.cwCopyState === 'idle' && button.querySelector('path').getAttribute('transform') === 'rotate(180 8 8)', 'After two seconds, feedback resets to Format Link and normal hover visibility');
+      check(button.dataset.cwTooltip === 'Format Link' && button.dataset.cwCopyState === 'idle' && button.querySelector('path').getAttribute('transform') === 'rotate(180 8 8)', 'After two seconds, feedback resets to Format Link and normal hover visibility');
 
       document.querySelector('h1[data-testid]').textContent = 'Edited summary';
       check((await copy(button)).text === 'DEMO-101: Edited summary', 'Reads edited summary on click');

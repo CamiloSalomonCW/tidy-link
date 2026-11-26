@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "TidyLink — GitHub & Jira Shortcuts",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Copy GitHub PR titles and Jira ticket keys and titles as clickable formatted links.",
   "permissions": ["activeTab", "clipboardWrite", "scripting", "storage"],
   "optional_host_permissions": ["https://*/*"],

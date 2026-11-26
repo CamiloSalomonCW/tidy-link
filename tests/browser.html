@@ -79,7 +79,7 @@
       check(parsed.body.children.length === 1 && parsed.body.firstElementChild.tagName === 'A' && !parsed.querySelector('script'), 'Title escaped safely in rich HTML');
       check(parsed.querySelector('a').textContent === '[DEMO-123] Fix <script> & café 🚀', 'Rich link contains exactly the PR title, not the PR number');
       check(parsed.querySelector('a').href === `${location.origin}/acme/repo/pull/42`, 'Canonical PR URL strips files, query and fragment');
-      check(button.title === 'Copied!' && button.querySelector('[role="status"]').textContent === 'Copied!', 'Visible and screen-reader success feedback');
+      check(button.dataset.cwTooltip === 'Copied!' && button.querySelector('[role="status"]').textContent === 'Copied!', 'Visible and screen-reader success feedback');
       check(nativeClicks === 0, 'Extension does not trigger native Copy link');
 
       document.dispatchEvent(new Event('turbo:load'));
@@ -98,7 +98,7 @@
       legacyCopyEnabled = true;
       button.click();
       await pause(20);
-      check(button.title === 'Copied!' && legacyCopyCalls === 1, 'Rejected async clipboard falls back to copy event');
+      check(button.dataset.cwTooltip === 'Copied!' && legacyCopyCalls === 1, 'Rejected async clipboard falls back to copy event');
       check(copiedEvent.prevented && copiedEvent.values.size === 2 && copiedEvent.values.has('text/html') && copiedEvent.values.has('text/plain'), 'Fallback cancels default copy and supplies both native representations');
       check(copiedEvent.values.get('text/html') === edited && copiedEvent.values.get('text/plain') === editedLink.textContent, 'Fallback preserves the same linked title, URL and plain title');
       const unrelatedCopy = new Event('copy', { bubbles: true, cancelable: true });
@@ -109,23 +109,23 @@
       Object.defineProperty(navigator, 'clipboard', { configurable: true, value: undefined });
       button.click();
       await pause(20);
-      check(button.title === 'Copied!' && legacyCopyCalls === 2, 'Copy event works when async clipboard API is unavailable');
+      check(button.dataset.cwTooltip === 'Copied!' && legacyCopyCalls === 2, 'Copy event works when async clipboard API is unavailable');
       Object.defineProperty(navigator, 'clipboard', { configurable: true, value: asyncClipboard });
 
       legacyCopyEnabled = false;
       button.click();
       await pause(20);
-      check(button.title.includes('Clipboard denied for test') && !button.disabled, 'Actual error is reported if both copy methods fail');
+      check(button.dataset.cwTooltip.includes('Clipboard denied for test') && !button.disabled, 'Actual error is reported if both copy methods fail');
       await pause(2100);
-      check(button.title.includes('Clipboard denied for test'), 'Error tooltip persists for diagnosis');
+      check(button.dataset.cwTooltip.includes('Clipboard denied for test'), 'Error tooltip persists for diagnosis');
       const afterFailure = new Event('copy', { bubbles: true, cancelable: true });
       document.dispatchEvent(afterFailure);
       check(!afterFailure.defaultPrevented, 'Fallback listener removed after failure');
       rejectClipboard = false;
       await copy(button);
-      check(button.title === 'Copied!', 'Retry after clipboard error succeeds');
+      check(button.dataset.cwTooltip === 'Copied!', 'Retry after clipboard error succeeds');
       await pause(2100);
-      check(button.title === 'Copy PR title as a link' && button.querySelector('path').getAttribute('transform') === 'rotate(180 8 8)', 'Feedback resets to mirrored icon');
+      check(button.dataset.cwTooltip === 'Copy PR title as a link' && button.querySelector('path').getAttribute('transform') === 'rotate(180 8 8)', 'Feedback resets to mirrored icon');
 
       history.pushState({}, '', '/acme/repo/issues/42');
       window.dispatchEvent(new PopStateEvent('popstate'));
@@ -150,7 +150,7 @@
       const writesBefore = clipboardWrites;
       replacement.click();
       await pause(20);
-      check(replacement.title.startsWith('Could not copy') && clipboardWrites === writesBefore, 'Missing title does not overwrite clipboard');
+      check(replacement.dataset.cwTooltip.startsWith('Could not copy') && clipboardWrites === writesBefore, 'Missing title does not overwrite clipboard');
 
       document.querySelector('#result').textContent = `PASS: ${checks.length} checks\n${checks.join('\n')}`;
     } catch (error) {

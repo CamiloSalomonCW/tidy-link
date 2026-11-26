@@ -2,7 +2,7 @@
 
 **Clean links for busy teams.**
 
-An extension for **Microsoft Edge** that copies pull request and Jira issue titles as clickable links. It also adds GitHub shortcuts for managing the merge queue, toggling Devin automation, and opening test environments.
+An extension for **Microsoft Edge, Google Chrome, and compatible Chromium-based desktop browsers** that copies pull request and Jira issue titles as clickable links. It also adds GitHub shortcuts for managing the merge queue, toggling Devin automation, and opening test environments.
 
 ## Features
 
@@ -16,24 +16,26 @@ An extension for **Microsoft Edge** that copies pull request and Jira issue titl
 
 **Pasting links:** rich-text editors receive a clickable link. Plain-text fields receive only the title (plus the issue key for Jira). The buttons indicate whether copying succeeded.
 
-## Install in Edge
+## Installation
 
 1. Clone the repository or select **Code → Download ZIP** on GitHub and extract the archive.
-2. Open `edge://extensions` and turn on **Developer mode**.
+2. Open your browser's extensions page (`edge://extensions` in Edge, `chrome://extensions` in Chrome, or `brave://extensions` in Brave) and turn on **Developer mode**.
 3. Select **Load unpacked** and choose the folder containing [`manifest.json`](manifest.json).
-4. Open Edge's **Extensions** menu and pin **TidyLink — GitHub & Jira Shortcuts** to the toolbar.
+4. Open your browser's **Extensions** menu and pin **TidyLink — GitHub & Jira Shortcuts** to the toolbar.
 5. **Reload any GitHub or Jira pages you already had open** (`Ctrl+R` on Windows/Linux, `⌘R` on macOS). For Jira, follow the connection steps below first.
 
-**To update:** download the changes, open `edge://extensions`, and select **Reload** on the extension card. **Then reload the GitHub or Jira page itself.** Reloading the extension does not reload pages that are already open.
+**To update:** download the changes, open your browser's extensions page, and select **Reload** on the extension card. **Then reload the GitHub or Jira page itself.** Reloading the extension does not reload pages that are already open.
 
 ## Toolbar settings
 
-Click the **TidyLink** icon in the Edge toolbar to open settings. Each switch shows or hides its corresponding button on GitHub or Jira; it does not perform the action itself. Orange means on, and gray means off. Settings are saved in your browser.
+Click the **TidyLink** icon in your browser's toolbar to open settings. Each switch shows or hides its corresponding button on GitHub or Jira; it does not perform the action itself. Orange means on, and gray means off. Settings are saved in your browser.
+
+After setup, shortcuts load automatically when you open a supported page. You do not need to open the toolbar popup again. Hover over a shortcut or focus it with the keyboard to see a tooltip styled for GitHub or Jira.
 
 ### Connect Jira
 
 1. Open a page on your Jira site and click the **TidyLink** icon.
-2. Select **This is Jira** at the bottom of the popup. It uses the current tab's HTTPS origin as the base URL. Grant access when Edge prompts you. The connected URL appears in the popup, and the setup button disappears.
+2. Select **This is Jira** at the bottom of the popup. It uses the current tab's HTTPS origin as the base URL. Grant access when your browser prompts you. The connected URL appears in the popup, and the setup button disappears.
 3. **Reload the Jira page**, then open an issue. Hover over the issue key or use the keyboard to reach **Format Link** in the issue breadcrumb.
 
 <img src="docs/popup-jira-setup.png" width="310" alt="TidyLink popup with This is Jira enabled on a Jira tab">
@@ -60,6 +62,7 @@ The setup buttons are hidden once their respective settings are saved. The scree
 
 ## Permissions and compatibility
 
+- **Browser support:** TidyLink uses Manifest V3 and standard Chromium extension APIs. To install it from this repository, your browser must allow loading unpacked extensions.
 - **Clipboard (`clipboardWrite`):** writes to the clipboard when you click a copy button. The extension does not read the clipboard or keep a copy history.
 - **Site access (`scripting`):** the script runs on `github.com` by default. Jira support runs only on the HTTPS domain you authorize. GitHub Enterprise Server on custom domains is not supported.
 - **Active tab (`activeTab`) and settings (`storage`):** the popup reads the current tab's URL to connect Jira and saves your settings locally.

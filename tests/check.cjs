@@ -87,7 +87,7 @@ async function checkFirmLogin() {
     assert.ok(button, "Firm button appears for the Actions comment");
     button.click();
     await new Promise(resolve => setImmediate(resolve));
-    assert.match(button.title, /Clipboard write failed/);
+    assert.match(button.dataset.cwTooltip, /Clipboard write failed/);
     assert.deepEqual(navigations, []);
     deny = false;
     button.click();
@@ -125,7 +125,7 @@ async function checkFirmLogin() {
     window.fetch = async () => ({ ok: true, text: async () => "<p>No comment</p>" });
     filesButton.click();
     await new Promise(resolve => setImmediate(resolve));
-    assert.match(filesButton.title, /Firm login comment is unavailable/);
+    assert.match(filesButton.dataset.cwTooltip, /Firm login comment is unavailable/);
     assert.equal(writes.length, 2);
     assert.equal(navigations.length, 2);
     updateSettings({ firm: { newValue: false }, prTitle: { newValue: false }, devin: { newValue: false } }, "local");
