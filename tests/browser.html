@@ -1,0 +1,160 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>GitHub PR Title Link checks</title>
+<style>.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; }</style>
+<!-- Reduced from GitHub's current regular/sticky header markup, without generated class names. -->
+<h1 data-component="PH_Title"><span class="markdown-title">[DEMO-123] Fix &lt;script&gt; &amp; café 🚀</span><span class="sr-only"> - #42</span></h1>
+<div id="header" class="titleWithCopy">
+  <a data-component="BranchName">my-branch</a>
+  <button type="button" class="native-button" data-component="IconButton" data-size="small" data-variant="invisible" data-no-visuals="true" aria-labelledby="branch-tooltip"><svg></svg></button>
+  <span id="branch-tooltip">Copy link</span>
+</div>
+<div id="sticky-header" class="titleWithCopy">
+  <button type="button" aria-labelledby="sticky-tooltip"><svg></svg></button>
+  <span id="sticky-tooltip">Copy link</span>
+</div>
+<pre id="result">RUNNING</pre>
+<script>
+  let clipboardItems;
+  let rejectClipboard = false;
+  let clipboardWrites = 0;
+  let legacyCopyEnabled = false;
+  let legacyCopyCalls = 0;
+  let copiedEvent;
+  document.execCommand = (command) => {
+    if (command !== 'copy' || !legacyCopyEnabled) return false;
+    legacyCopyCalls++;
+    const values = new Map([['text/plain', 'stale clipboard text']]);
+    const event = new Event('copy', { bubbles: true, cancelable: true });
+    Object.defineProperty(event, 'clipboardData', { value: {
+      clearData() { values.clear(); },
+      setData(type, value) { values.set(type, value); },
+    }});
+    document.dispatchEvent(event);
+    copiedEvent = { values, prevented: event.defaultPrevented };
+    return true;
+  };
+  let nativeClicks = 0;
+  document.querySelector('#header button').addEventListener('click', () => nativeClicks++);
+  Object.defineProperty(navigator, 'clipboard', { configurable: true, value: {
+    async write(items) {
+      clipboardWrites++;
+      if (rejectClipboard) throw new Error('Clipboard denied for test');
+      clipboardItems = items;
+    },
+  }});
+</script>
+<script src="/content.js"></script>
+<script>
+  (async () => {
+    const checks = [];
+    const marker = '[data-cw-pr-title-link]';
+    const pause = (ms = 200) => new Promise(resolve => setTimeout(resolve, ms));
+    function check(condition, message) {
+      if (!condition) throw new Error(message);
+      checks.push(message);
+    }
+    async function copy(button) {
+      button.click();
+      await pause(20);
+      const item = clipboardItems[0];
+      check(item.types.length === 2 && item.types.includes('text/html') && item.types.includes('text/plain'), 'Clipboard has rich HTML and native text representations');
+      const html = await (await item.getType('text/html')).text();
+      const text = await (await item.getType('text/plain')).text();
+      const link = new DOMParser().parseFromString(html, 'text/html').querySelector('a');
+      check(text === link.textContent && text.length > 0, 'Plain paste yields exactly the title, without Markdown or an appended URL');
+      return html;
+    }
+    try {
+      let buttons = document.querySelectorAll(marker);
+      check(buttons.length === 2, 'One button per regular/sticky header');
+      const button = buttons[0];
+      check(button.previousElementSibling.matches('#header button.native-button'), 'Inserted immediately after native Copy link button');
+      check(document.querySelector('#branch-tooltip').textContent === 'Copy link', 'Native tooltip preserved');
+      check(button.className === 'native-button' && button.dataset.variant === 'invisible', 'Native styling preserved');
+      check(button.type === 'button' && button.getAttribute('aria-label') === 'Copy PR title as a link', 'Accessible, non-submit button');
+      check(button.querySelector('path').getAttribute('transform') === 'rotate(180 8 8)', 'Icon mirrored on both axes');
+      const copied = await copy(button);
+      const parsed = new DOMParser().parseFromString(copied, 'text/html');
+      check(parsed.body.children.length === 1 && parsed.body.firstElementChild.tagName === 'A' && !parsed.querySelector('script'), 'Title escaped safely in rich HTML');
+      check(parsed.querySelector('a').textContent === '[DEMO-123] Fix <script> & café 🚀', 'Rich link contains exactly the PR title, not the PR number');
+      check(parsed.querySelector('a').href === `${location.origin}/acme/repo/pull/42`, 'Canonical PR URL strips files, query and fragment');
+      check(button.title === 'Copied!' && button.querySelector('[role="status"]').textContent === 'Copied!', 'Visible and screen-reader success feedback');
+      check(nativeClicks === 0, 'Extension does not trigger native Copy link');
+
+      document.dispatchEvent(new Event('turbo:load'));
+      document.dispatchEvent(new Event('pjax:end'));
+      document.body.append(document.createElement('div'));
+      await pause();
+      check(document.querySelectorAll(marker).length === 2, 'No duplicates after Turbo/PJAX and DOM mutations');
+
+      document.querySelector('h1 .markdown-title').textContent = String.raw`Edited [title] with \ slash`;
+      history.pushState({}, '', '/other/project/pull/99/commits?x=1#diff');
+      const edited = await copy(button);
+      const editedLink = new DOMParser().parseFromString(edited, 'text/html').querySelector('a');
+      check(editedLink.textContent === String.raw`Edited [title] with \ slash` && editedLink.href === `${location.origin}/other/project/pull/99`, 'Click reads edited title and current PR');
+
+      rejectClipboard = true;
+      legacyCopyEnabled = true;
+      button.click();
+      await pause(20);
+      check(button.title === 'Copied!' && legacyCopyCalls === 1, 'Rejected async clipboard falls back to copy event');
+      check(copiedEvent.prevented && copiedEvent.values.size === 2 && copiedEvent.values.has('text/html') && copiedEvent.values.has('text/plain'), 'Fallback cancels default copy and supplies both native representations');
+      check(copiedEvent.values.get('text/html') === edited && copiedEvent.values.get('text/plain') === editedLink.textContent, 'Fallback preserves the same linked title, URL and plain title');
+      const unrelatedCopy = new Event('copy', { bubbles: true, cancelable: true });
+      document.dispatchEvent(unrelatedCopy);
+      check(!unrelatedCopy.defaultPrevented, 'Fallback listener removed after copying');
+
+      const asyncClipboard = navigator.clipboard;
+      Object.defineProperty(navigator, 'clipboard', { configurable: true, value: undefined });
+      button.click();
+      await pause(20);
+      check(button.title === 'Copied!' && legacyCopyCalls === 2, 'Copy event works when async clipboard API is unavailable');
+      Object.defineProperty(navigator, 'clipboard', { configurable: true, value: asyncClipboard });
+
+      legacyCopyEnabled = false;
+      button.click();
+      await pause(20);
+      check(button.title.includes('Clipboard denied for test') && !button.disabled, 'Actual error is reported if both copy methods fail');
+      await pause(2100);
+      check(button.title.includes('Clipboard denied for test'), 'Error tooltip persists for diagnosis');
+      const afterFailure = new Event('copy', { bubbles: true, cancelable: true });
+      document.dispatchEvent(afterFailure);
+      check(!afterFailure.defaultPrevented, 'Fallback listener removed after failure');
+      rejectClipboard = false;
+      await copy(button);
+      check(button.title === 'Copied!', 'Retry after clipboard error succeeds');
+      await pause(2100);
+      check(button.title === 'Copy PR title as a link' && button.querySelector('path').getAttribute('transform') === 'rotate(180 8 8)', 'Feedback resets to mirrored icon');
+
+      history.pushState({}, '', '/acme/repo/issues/42');
+      window.dispatchEvent(new PopStateEvent('popstate'));
+      await pause();
+      check(document.querySelectorAll(marker).length === 0, 'Buttons removed outside PR pages');
+
+      document.querySelector('#header').innerHTML = '<span><clipboard-copy aria-label="Copy link" class="btn-link"></clipboard-copy></span>';
+      document.querySelector('#sticky-header').remove();
+      document.querySelector('h1').innerHTML = '<bdi class="js-issue-title">Legacy PR title</bdi>';
+      history.pushState({}, '', '/acme/repo/pull/101');
+      document.dispatchEvent(new Event('turbo:load'));
+      await pause();
+      check(document.querySelectorAll(marker).length === 1, 'PR-list to PR navigation and legacy clipboard-copy supported');
+      const legacyLink = new DOMParser().parseFromString(await copy(document.querySelector(marker)), 'text/html').querySelector('a');
+      check(legacyLink.textContent === 'Legacy PR title' && legacyLink.href === `${location.origin}/acme/repo/pull/101`, 'Legacy title selector works');
+
+      document.querySelector('#header').innerHTML = '<button aria-label="Copy link"></button>';
+      await pause();
+      check(document.querySelectorAll(marker).length === 1, 'Button recreated after React replaces the header');
+      const replacement = document.querySelector(marker);
+      document.querySelector('h1').remove();
+      const writesBefore = clipboardWrites;
+      replacement.click();
+      await pause(20);
+      check(replacement.title.startsWith('Could not copy') && clipboardWrites === writesBefore, 'Missing title does not overwrite clipboard');
+
+      document.querySelector('#result').textContent = `PASS: ${checks.length} checks\n${checks.join('\n')}`;
+    } catch (error) {
+      document.querySelector('#result').textContent = `FAIL: ${error.stack}\nPassed: ${checks.join(', ')}`;
+    }
+  })();
+</script>

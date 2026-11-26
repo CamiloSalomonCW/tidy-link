@@ -1,0 +1,75 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Jira full ticket page checks</title>
+<!-- Representative full-page breadcrumb, where the current issue need not be an anchor. -->
+<h1>Workspace navigation</h1>
+<main>
+  <nav aria-label="Breadcrumbs">
+    <span id="epic"><a href="/browse/DEMO-100">DEMO-100</a><button aria-label="Copy link">Copy epic</button></span>
+    <span id="ticket"><span aria-current="page">DEMO-201</span><span style="opacity:0"><button aria-label="Copy link">Copy link</button></span></span>
+  </nav>
+  <h1>Full-page title &amp; Unicode 🚀</h1>
+  <section><button aria-label="Copy link">Copy comment</button></section>
+</main>
+<pre id="result">RUNNING</pre>
+<script>
+  let items;
+  Object.defineProperty(navigator, 'clipboard', { configurable: true, value: {
+    async write(value) { items = value; },
+  }});
+</script>
+<script src="/content.js"></script>
+<script>
+  (async () => {
+    const checks = [];
+    const marker = '[data-cw-pr-title-link]';
+    const pause = (ms = 200) => new Promise(resolve => setTimeout(resolve, ms));
+    function check(condition, message) {
+      if (!condition) throw new Error(message);
+      checks.push(message);
+    }
+    async function copy(button) {
+      button.click();
+      await pause(20);
+      const html = await (await items[0].getType('text/html')).text();
+      const text = await (await items[0].getType('text/plain')).text();
+      return { link: new DOMParser().parseFromString(html, 'text/html').querySelector('a'), text };
+    }
+    try {
+      let button = document.querySelector('#ticket > ' + marker);
+      check(button?.title === 'Format Link', 'Full-page current ticket gets Format Link even without an anchor');
+      check(document.querySelectorAll(marker).length === 1, 'No action on epic, comments or navigation');
+      let copied = await copy(button);
+      check(copied.text === 'DEMO-201: Full-page title & Unicode 🚀', 'Uses issue heading in main, not the workspace heading');
+      check(copied.link.href === `${location.origin}/browse/DEMO-201` && copied.link.textContent === copied.text, 'Current page breadcrumb copies a rich canonical issue link');
+      check(button.dataset.cwCopyState === 'success' && button.querySelector('path').getAttribute('d') === 'M3 8l3 3 7-7', 'Same success check and visible feedback as popup');
+      check(button.parentElement.hasAttribute('data-cw-jira-copy-group') && document.querySelector('#cw-jira-format-link-style').textContent.includes('translateX(-6px)'), 'Same ticket-text hover and left-to-right animation');
+      await pause(2100);
+      check(button.title === 'Format Link' && button.dataset.cwCopyState === 'idle', 'Feedback resets after two seconds');
+
+      const current = document.querySelector('[aria-current="page"]');
+      current.outerHTML = '<a href="/browse/DEMO-201?source=breadcrumb">DEMO-201</a>';
+      document.querySelector('main > h1').textContent = 'Edited full-page title';
+      await pause();
+      button = document.querySelector('#ticket > ' + marker);
+      copied = await copy(button);
+      check(copied.link.search === '?source=breadcrumb' && copied.text === 'DEMO-201: Edited full-page title', 'Anchor breadcrumbs preserve their destination and edited title');
+      check(document.querySelectorAll(marker).length === 1, 'No duplicates after full-page rerender');
+
+      history.pushState({}, '', '/browse/DEMO-202');
+      document.querySelector('#ticket a').href = '/browse/DEMO-202';
+      document.querySelector('#ticket a').textContent = 'DEMO-202';
+      document.querySelector('main > h1').textContent = 'Next full-page ticket';
+      await pause();
+      copied = await copy(document.querySelector('#ticket > ' + marker));
+      check(copied.text === 'DEMO-202: Next full-page ticket' && copied.link.pathname === '/browse/DEMO-202', 'SPA full-page issue switch reads new key, title and destination');
+
+      document.querySelector('main > h1').remove();
+      await pause();
+      check(document.querySelectorAll(marker).length === 0, 'Missing issue heading never falls back to workspace heading');
+      document.querySelector('#result').textContent = `PASS: ${checks.length} Jira full-page checks\n${checks.join('\n')}`;
+    } catch (error) {
+      document.querySelector('#result').textContent = `FAIL: ${error.stack}\nPassed: ${checks.join(', ')}`;
+    }
+  })();
+</script>

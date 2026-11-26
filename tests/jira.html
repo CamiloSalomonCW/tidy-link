@@ -1,0 +1,123 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Jira Format Link checks</title>
+<!-- Representative accessible Jira modal markup; not a capture of the authenticated site. -->
+<h1>Board heading, not the issue summary</h1>
+<div role="dialog" id="issue">
+  <nav aria-label="Breadcrumbs">
+    <span id="epic"><a href="/browse/DEMO-100">DEMO-100</a><button aria-label="Copy link">Epic copy</button></span>
+    <span id="ticket"><a href="/browse/DEMO-101?source=breadcrumb">DEMO-101</a><span id="native-action-wrapper" style="opacity:0;overflow:hidden;width:24px"><button class="native-hover-only" aria-label="Copy link">Ticket copy</button></span></span>
+  </nav>
+  <h1 data-testid="issue.views.issue-base.foundation.summary.heading">Fix &lt;unsafe&gt; &amp; Unicode 🚀</h1>
+  <section><button aria-label="Copy link">Copy comment link</button></section>
+</div>
+<pre id="result">RUNNING</pre>
+<script>
+  let clipboardItems;
+  let nativeClicks = 0;
+  document.querySelector('#ticket button').addEventListener('click', () => nativeClicks++);
+  Object.defineProperty(navigator, 'clipboard', { configurable: true, value: {
+    async write(items) { clipboardItems = items; },
+  }});
+</script>
+<script src="/content.js"></script>
+<script>
+  (async () => {
+    const checks = [];
+    const marker = '[data-cw-pr-title-link]';
+    const pause = (ms = 200) => new Promise(resolve => setTimeout(resolve, ms));
+    function check(condition, message) {
+      if (!condition) throw new Error(message);
+      checks.push(message);
+    }
+    async function copy(button) {
+      button.click();
+      await pause(20);
+      const item = clipboardItems[0];
+      const html = await (await item.getType('text/html')).text();
+      const text = await (await item.getType('text/plain')).text();
+      return { link: new DOMParser().parseFromString(html, 'text/html').querySelector('a'), html, text };
+    }
+    try {
+      const button = document.querySelector('#ticket > ' + marker);
+      check(button?.matches(marker) && button.title === 'Format Link', 'Format Link is a direct child of the ticket text hover group');
+      check(button.previousElementSibling.id === 'native-action-wrapper', 'Action is beside the native wrapper, not inside its hidden container');
+      check(button.className === '' && !document.querySelector('#native-action-wrapper').contains(button), 'Does not inherit native hover-only classes or clipped wrapper');
+      check(document.querySelectorAll(marker).length === 1, 'No button on ancestor epic or comment copy link');
+      check(button.querySelector('path').getAttribute('transform') === 'rotate(180 8 8)', 'Same mirrored icon as GitHub');
+      check(document.querySelector('#ticket').hasAttribute('data-cw-jira-copy-group'), 'Hover and focus styles scoped to ticket breadcrumb group');
+      const css = document.querySelector('#cw-jira-format-link-style').textContent;
+      check(css.includes(':focus-within'), 'Keyboard focus also reveals the action');
+      const ticketText = document.querySelector('#ticket a');
+      ticketText.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+      check(button.hasAttribute('data-cw-jira-visible'), 'Hovering ticket text explicitly reveals the action');
+      check(css.includes('translateX(-6px)') && css.includes('translateX(0)') && css.includes('transition: opacity 150ms'), 'Reveals with a left-to-right slide and fade');
+      check(css.includes('prefers-reduced-motion: reduce') && css.includes('pointer-events: none'), 'Respects reduced motion and prevents invisible mouse targets');
+      check(button.dataset.cwCopyState === 'idle', 'Starts without feedback visibility override');
+      const copied = await copy(button);
+      check(button.dataset.cwCopyState === 'success' && button.title === 'Copied!', 'Successful copy sets persistent visible feedback state');
+      check(button.querySelector('path').getAttribute('d') === 'M3 8l3 3 7-7' && button.querySelector('path').getAttribute('transform') === '', 'Link icon becomes the same upright success check as GitHub');
+      check(css.includes('[data-cw-copy-state="success"]'), 'Success check stays visible even when pointer leaves ticket text');
+      check(copied.text === 'DEMO-101: Fix <unsafe> & Unicode 🚀', 'Plain text compatibility contains ticket key and full title, no Markdown');
+      check(copied.link.textContent === copied.text && !copied.html.includes('<unsafe>'), 'Rich label is safe and exactly matches ticket key and title');
+      check(copied.link.href === `${location.origin}/browse/DEMO-101?source=breadcrumb`, 'Uses exact breadcrumb destination, preserving its query, not board URL');
+      check(nativeClicks === 0, 'Does not trigger native copy or navigate to the ticket');
+      await pause(2100);
+      check(button.title === 'Format Link' && button.dataset.cwCopyState === 'idle' && button.querySelector('path').getAttribute('transform') === 'rotate(180 8 8)', 'After two seconds, feedback resets to Format Link and normal hover visibility');
+
+      document.querySelector('h1[data-testid]').textContent = 'Edited summary';
+      check((await copy(button)).text === 'DEMO-101: Edited summary', 'Reads edited summary on click');
+      document.querySelector('#issue').append(document.createElement('div'));
+      await pause();
+      check(document.querySelectorAll(marker).length === 1 && document.querySelector(marker) === button, 'No duplicates or lost feedback when action is outside native wrapper');
+
+      // Issue switching reuses the popup; the native copy action may mount only on hover.
+      document.querySelector('#ticket').innerHTML = '<a href="/browse/DEMO-102">DEMO-102</a>';
+      document.querySelector('h1[data-testid]').textContent = 'Next ticket';
+      history.pushState({}, '', '/jira/software/c/projects/DEMO/boards/42?selectedIssue=DEMO-102');
+      window.dispatchEvent(new PopStateEvent('popstate'));
+      await pause();
+      check(document.querySelectorAll(marker).length === 1, 'New ticket has Format Link before native Copy link mounts');
+      const native = document.createElement('button');
+      native.setAttribute('aria-label', 'Copy link');
+      document.querySelector('#ticket').append(native);
+      await pause();
+      const nextButton = document.querySelector('#ticket > ' + marker);
+      check(nextButton && document.querySelectorAll(marker).length === 1, 'Native Copy link mounting does not duplicate our independent action');
+      const next = await copy(nextButton);
+      check(next.text === 'DEMO-102: Next ticket' && next.link.pathname === '/browse/DEMO-102', 'Issue switch uses new key, title and destination');
+
+      // React can replace a wrapper without replacing the ticket text.
+      const wrapper = document.createElement('span');
+      wrapper.style.cssText = 'opacity:0;overflow:hidden';
+      native.before(wrapper);
+      wrapper.append(native);
+      await pause();
+      check(document.querySelector('#ticket > ' + marker) && !wrapper.querySelector(marker), 'Wrapper replacement keeps action outside native clipping container');
+
+      native.removeAttribute('aria-label');
+      native.setAttribute('aria-describedby', 'copy-tooltip');
+      const tooltip = document.createElement('div');
+      tooltip.id = 'copy-tooltip';
+      tooltip.textContent = 'Copy link';
+      document.body.append(tooltip);
+      await pause();
+      check(document.querySelectorAll(marker).length === 1, 'Changing native Copy link tooltip does not affect our action');
+
+      native.remove();
+      await pause();
+      check(document.querySelector('#ticket > ' + marker) === nextButton, 'Unmounting native Copy link preserves our button and feedback');
+
+      document.querySelector('h1[data-testid]').remove();
+      await pause();
+      check(document.querySelectorAll(marker).length === 0, 'Does not copy board or epic title when summary is missing');
+      document.querySelector('#issue').remove();
+      await pause();
+      check(document.querySelectorAll(marker).length === 0, 'Closing issue popup leaves no action behind');
+
+      document.querySelector('#result').textContent = `PASS: ${checks.length} Jira checks\n${checks.join('\n')}`;
+    } catch (error) {
+      document.querySelector('#result').textContent = `FAIL: ${error.stack}\nPassed: ${checks.join(', ')}`;
+    }
+  })();
+</script>

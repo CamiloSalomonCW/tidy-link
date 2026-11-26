@@ -1,0 +1,76 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Jira independent hover checks</title>
+<main>
+  <nav aria-label="Breadcrumbs"><span id="ticket"><a href="/browse/DEMO-201"><span>DEMO-201</span></a><span id="native-wrapper"></span></span></nav>
+  <h1>Independent hover</h1>
+</main>
+<pre id="result">RUNNING</pre>
+<script>
+  let copied;
+  Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { async write(items) { copied = items; } } });
+</script>
+<script src="/content.js"></script>
+<script>
+  (async () => {
+    const checks = [];
+    const pause = (ms = 150) => new Promise(resolve => setTimeout(resolve, ms));
+    function check(condition, message) {
+      if (!condition) throw new Error(message);
+      checks.push(message);
+    }
+    const group = document.querySelector('#ticket');
+    const anchor = group.querySelector('a');
+    const marker = '[data-cw-pr-title-link]';
+    function enter(target = anchor, relatedTarget = document.body) {
+      target.dispatchEvent(new MouseEvent('mouseover', { bubbles: true, relatedTarget }));
+    }
+    function leave(target = anchor, relatedTarget = document.body) {
+      target.dispatchEvent(new MouseEvent('mouseout', { bubbles: true, relatedTarget }));
+    }
+    try {
+      const button = group.querySelector(marker);
+      check(button && !document.querySelector('button[aria-label="Copy link"]'), 'Installs action before native Copy link or its tooltip exists');
+      check(!button.hasAttribute('data-cw-jira-visible'), 'Action starts hidden until text hover or keyboard focus');
+      enter(anchor.querySelector('span'));
+      check(button.hasAttribute('data-cw-jira-visible'), 'Hovering nested ticket text reveals action immediately');
+      leave(anchor, button);
+      await pause(2100);
+      check(button.hasAttribute('data-cw-jira-visible'), 'Moving from ticket text to Format Link does not hide it');
+
+      document.querySelector('#native-wrapper').innerHTML = '<button aria-label="Copy link">Native</button>';
+      await pause();
+      document.querySelector('#native-wrapper').remove();
+      leave(button);
+      await pause(1100);
+      check(button.isConnected && button.hasAttribute('data-cw-jira-visible'), 'Survives native Copy link removal and first second outside the zone');
+      enter();
+      await pause(1100);
+      check(button.hasAttribute('data-cw-jira-visible'), 'Re-entering cancels the old hide timeout');
+      leave();
+      await pause(1750);
+      check(button.hasAttribute('data-cw-jira-visible'), 'Remains visible for at least two seconds after leaving');
+      await pause(400);
+      check(!button.hasAttribute('data-cw-jira-visible'), 'Hides after the two-second grace period');
+
+      anchor.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+      check(button.hasAttribute('data-cw-jira-visible'), 'Keyboard focus reveals the same independent action');
+      anchor.dispatchEvent(new FocusEvent('focusout', { bubbles: true, relatedTarget: document.body }));
+      await pause(2100);
+      check(!button.hasAttribute('data-cw-jira-visible'), 'Keyboard exit uses the same two-second grace period');
+
+      enter();
+      button.click();
+      await pause();
+      const html = await (await copied[0].getType('text/html')).text();
+      check(html.includes('/browse/DEMO-201') && html.includes('DEMO-201: Independent hover'), 'Independent action still copies correct formatted ticket link');
+      check(button.dataset.cwCopyState === 'success', 'Copy success shows the check');
+      group.remove();
+      await pause();
+      check(!document.querySelector(marker), 'Removing the ticket removes its action even during grace period');
+      document.querySelector('#result').textContent = `PASS: ${checks.length} Jira hover checks\n${checks.join('\n')}`;
+    } catch (error) {
+      document.querySelector('#result').textContent = `FAIL: ${error.stack}\nPassed: ${checks.join(', ')}`;
+    }
+  })();
+</script>
