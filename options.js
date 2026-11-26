@@ -1,3 +1,4 @@
+const api = globalThis.browser ?? globalThis.chrome;
 const scriptId = "jira-format-link";
 const switches = [...document.querySelectorAll('input[role="switch"]')];
 const connect = document.querySelector("#connect");
@@ -21,9 +22,9 @@ function renderJira() {
 
 async function setup() {
   const [settings, [script], [tab]] = await Promise.all([
-    chrome.storage.local.get(null),
-    chrome.scripting.getRegisteredContentScripts({ ids: [scriptId] }),
-    chrome.tabs.query({ active: true, currentWindow: true }),
+    api.storage.local.get(null),
+    api.scripting.getRegisteredContentScripts({ ids: [scriptId] }),
+    api.tabs.query({ active: true, currentWindow: true }),
   ]);
   const url = tab?.url && new URL(tab.url);
   if (url?.origin === "https://github.com" && /^\/[^/]+\/[^/]+\/pull\/\d+\/?$/.test(url.pathname)) {
@@ -54,12 +55,12 @@ detectPr.addEventListener("click", async () => {
   try {
     let site;
     try {
-      site = await chrome.tabs.sendMessage(prTabId, "detect-firm-site");
+      site = await api.tabs.sendMessage(prTabId, "detect-firm-site");
     } catch {
       throw new Error("Reload the PR tab and try again.");
     }
     if (!site) throw new Error("No matching GitHub Actions comment found in this PR.");
-    await chrome.storage.local.set({ firmSite: site, firm: true });
+    await api.storage.local.set({ firmSite: site, firm: true });
     repo.value = site.repo;
     domain.value = site.domain;
     firmSwitch.checked = true;
@@ -87,20 +88,20 @@ async function changeSite(action) {
 connect.addEventListener("click", () => changeSite(async () => {
   const next = `${activeOrigin}/*`;
   const previous = current;
-  const granted = await chrome.permissions.request({ origins: [next] });
+  const granted = await api.permissions.request({ origins: [next] });
   if (!granted) throw new Error("Access to the Jira site was not granted.");
   const script = { id: scriptId, matches: [next], js: ["content.js"], runAt: "document_idle" };
   try {
-    if (previous) await chrome.scripting.updateContentScripts([script]);
-    else await chrome.scripting.registerContentScripts([script]);
+    if (previous) await api.scripting.updateContentScripts([script]);
+    else await api.scripting.registerContentScripts([script]);
   } catch (error) {
-    await chrome.permissions.remove({ origins: [next] });
+    await api.permissions.remove({ origins: [next] });
     throw error;
   }
   current = next;
-  if (previous) await chrome.permissions.remove({ origins: [previous] });
+  if (previous) await api.permissions.remove({ origins: [previous] });
   try {
-    await chrome.scripting.executeScript({ target: { tabId: activeTabId }, files: ["content.js"] });
+    await api.scripting.executeScript({ target: { tabId: activeTabId }, files: ["content.js"] });
     status.textContent = "Jira connected.";
   } catch {
     status.textContent = "Jira connected. Reload your Jira tab.";
@@ -109,9 +110,9 @@ connect.addEventListener("click", () => changeSite(async () => {
 
 disconnect.addEventListener("click", () => changeSite(async () => {
   const previous = current;
-  await chrome.scripting.unregisterContentScripts({ ids: [scriptId] });
+  await api.scripting.unregisterContentScripts({ ids: [scriptId] });
   current = undefined;
-  await chrome.permissions.remove({ origins: [previous] });
+  await api.permissions.remove({ origins: [previous] });
   status.textContent = "Jira disconnected. Reload your Jira tabs.";
 }));
 
@@ -119,7 +120,7 @@ for (const input of switches) {
   input.addEventListener("change", async () => {
     input.disabled = true;
     try {
-      await chrome.storage.local.set({ [input.id]: input.checked });
+      await api.storage.local.set({ [input.id]: input.checked });
       status.textContent = input.id === "firm" && input.checked && (!repo.value || !domain.value)
         ? "Set a repository and allowed domain under Firm URL setup." : "";
     } catch (error) {
@@ -140,7 +141,7 @@ document.querySelector("#firm-form").addEventListener("submit", async (event) =>
     return;
   }
   try {
-    await chrome.storage.local.set({ firmSite: { repo: repository, domain: hostname } });
+    await api.storage.local.set({ firmSite: { repo: repository, domain: hostname } });
     detectPr.hidden = true;
     status.textContent = "Firm URL settings saved.";
   } catch (error) {

@@ -1,6 +1,7 @@
 (() => {
   if (globalThis.formatLinkLoaded) return;
   globalThis.formatLinkLoaded = true;
+  const api = globalThis.browser ?? globalThis.chrome;
   const defaults = { prTitle: true, trunk: true, devin: true, firm: false, jira: true, firmSite: null };
   let settings;
   const copyLinkLabel = "Copy link";
@@ -375,7 +376,7 @@
   }
 
   if (location.hostname === "github.com") {
-    globalThis.chrome?.runtime?.onMessage.addListener((message, _sender, sendResponse) => {
+    api?.runtime?.onMessage.addListener((message, _sender, sendResponse) => {
       if (message !== "detect-firm-site") return;
       const pathname = prPath();
       const repo = isConversation(pathname) && githubRepo(pathname);
@@ -574,7 +575,7 @@
   document.addEventListener("turbo:load", schedule);
   document.addEventListener("pjax:end", schedule);
   window.addEventListener("popstate", schedule);
-  const storage = globalThis.chrome?.storage;
+  const storage = api?.storage;
   if (storage) {
     storage.local.get(defaults).then(values => {
       settings = values;

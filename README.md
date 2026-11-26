@@ -2,7 +2,7 @@
 
 **Clean links for busy teams.**
 
-An extension for **Microsoft Edge, Google Chrome, and compatible Chromium-based desktop browsers** that copies pull request and Jira issue titles as clickable links. It also adds GitHub shortcuts for managing the merge queue, toggling Devin automation, and opening test environments.
+An extension for **Firefox, Microsoft Edge, Google Chrome, and compatible Chromium-based desktop browsers** that copies pull request and Jira issue titles as clickable links. It also adds GitHub shortcuts for managing the merge queue, toggling Devin automation, and opening test environments.
 
 ## Features
 
@@ -18,6 +18,8 @@ An extension for **Microsoft Edge, Google Chrome, and compatible Chromium-based 
 
 ## Installation
 
+### Chrome, Edge, and other Chromium browsers
+
 1. Clone the repository or select **Code → Download ZIP** on GitHub and extract the archive.
 2. Open your browser's extensions page (`edge://extensions` in Edge, `chrome://extensions` in Chrome, or `brave://extensions` in Brave) and turn on **Developer mode**.
 3. Select **Load unpacked** and choose the folder containing [`manifest.json`](manifest.json).
@@ -25,6 +27,14 @@ An extension for **Microsoft Edge, Google Chrome, and compatible Chromium-based 
 5. **Reload any GitHub or Jira pages you already had open** (`Ctrl+R` on Windows/Linux, `⌘R` on macOS). For Jira, follow the connection steps below first.
 
 **To update:** download the changes, open your browser's extensions page, and select **Reload** on the extension card. **Then reload the GitHub or Jira page itself.** Reloading the extension does not reload pages that are already open.
+
+### Firefox
+
+1. Clone the repository or download and extract the ZIP from GitHub.
+2. In desktop Firefox 128 or later, open `about:debugging#/runtime/this-firefox`, select **Load Temporary Add-on**, and choose [`manifest.json`](manifest.json).
+3. If prompted, grant access to GitHub. Open TidyLink from the **Extensions** menu to connect Jira, then **reload any GitHub or Jira tabs you already had open**.
+
+To update during the same session, select **Reload** on the TidyLink card in `about:debugging`, then reload the affected web pages. This temporary install is removed when Firefox restarts. A persistent install in standard Firefox requires a Mozilla-signed add-on.
 
 ## Toolbar settings
 
@@ -62,7 +72,7 @@ The setup buttons are hidden once their respective settings are saved. The scree
 
 ## Permissions and compatibility
 
-- **Browser support:** TidyLink uses Manifest V3 and standard Chromium extension APIs. To install it from this repository, your browser must allow loading unpacked extensions.
+- **Browser support:** Firefox and Chromium share the same Manifest V3 codebase. To install directly from this repository, use the temporary add-on loader in Firefox or **Load unpacked** in Chromium.
 - **Clipboard (`clipboardWrite`):** writes to the clipboard when you click a copy button. The extension does not read the clipboard or keep a copy history.
 - **Site access (`scripting`):** the script runs on `github.com` by default. Jira support runs only on the HTTPS domain you authorize. GitHub Enterprise Server on custom domains is not supported.
 - **Active tab (`activeTab`) and settings (`storage`):** the popup reads the current tab's URL to connect Jira and saves your settings locally.
