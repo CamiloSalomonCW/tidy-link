@@ -30,8 +30,8 @@ An extension for **Firefox, Microsoft Edge, Google Chrome, and compatible Chromi
 
 ### Firefox
 
-1. Clone the repository or download and extract the ZIP from GitHub.
-2. In desktop Firefox 128 or later, open `about:debugging#/runtime/this-firefox`, select **Load Temporary Add-on**, and choose [`manifest.json`](manifest.json).
+1. Clone the repository or download the GitHub ZIP and **extract it first**. GitHub's source ZIP has `manifest.json` inside a project folder, so loading the ZIP directly gives a “does not contain a valid manifest” error in Firefox-based browsers, including Zen.
+2. In desktop Firefox 128 or later (or a compatible Firefox-based browser), open `about:debugging#/runtime/this-firefox`, select **Load Temporary Add-on**, and choose the [`manifest.json`](manifest.json) file inside the extracted `tidy-link-main` folder.
 3. If prompted, grant access to GitHub. Open TidyLink from the **Extensions** menu to connect Jira, then **reload any GitHub or Jira tabs you already had open**.
 
 To update during the same session, select **Reload** on the TidyLink card in `about:debugging`, then reload the affected web pages. This temporary install is removed when Firefox restarts. A persistent install in standard Firefox requires a Mozilla-signed add-on.
